@@ -132,6 +132,13 @@ func main() {
 	// Only required in Go < 1.5
 	runtime.GOMAXPROCS(*aCpus)
 
+	// Configure libvips cache to prevent memory leaks
+	// Limit cache to 0 operations (disable operation cache) to prevent memory buildup
+	// This is especially important for pipeline operations that process many images
+	bimg.VipsCacheSetMax(0)
+	// Limit cache memory to 100MB as a safety measure
+	bimg.VipsCacheSetMaxMem(100 * 1024 * 1024)
+
 	port := getPort(*aPort)
 	urlSignature := getURLSignature(*aURLSignatureKey)
 

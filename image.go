@@ -422,6 +422,11 @@ func Pipeline(buf []byte, o ImageOptions) (Image, error) {
 		oldBody = nil
 	}
 
+	// Clear libvips operation cache after pipeline processing to prevent memory leaks
+	// This is important for pipelines processing large images (e.g., 4096x4096)
+	// as libvips may cache intermediate operations
+	bimg.VipsCacheDropAll()
+
 	return image, err
 }
 
