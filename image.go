@@ -403,16 +403,23 @@ func Pipeline(buf []byte, o ImageOptions) (Image, error) {
 	image = Image{Body: buf}
 	for _, operation := range o.Operations {
 		var curImage Image
-		curImage, err = operation.Operation(image.Body, operation.ImageOptions)
+		// Store reference to old buffer before processing
+		oldBody := image.Body
+		curImage, err = operation.Operation(oldBody, operation.ImageOptions)
 		if err != nil && !operation.IgnoreFailure {
+			// Clear the current image buffer before returning error
+			image.Body = nil
 			return Image{}, err
 		}
 		if operation.IgnoreFailure {
 			err = nil
 		}
 		if err == nil {
+			// Replace with new image buffer
 			image = curImage
 		}
+		// Explicitly clear reference to old buffer to help GC reclaim memory faster
+		oldBody = nil
 	}
 
 	return image, err
