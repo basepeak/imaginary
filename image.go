@@ -403,12 +403,8 @@ func Pipeline(buf []byte, o ImageOptions) (Image, error) {
 	image = Image{Body: buf}
 	for _, operation := range o.Operations {
 		var curImage Image
-		// Store reference to old buffer before processing
-		oldBody := image.Body
-		curImage, err = operation.Operation(oldBody, operation.ImageOptions)
+		curImage, err = operation.Operation(image.Body, operation.ImageOptions)
 		if err != nil && !operation.IgnoreFailure {
-			// Clear the current image buffer before returning error
-			image.Body = nil
 			return Image{}, err
 		}
 		if operation.IgnoreFailure {
@@ -418,8 +414,6 @@ func Pipeline(buf []byte, o ImageOptions) (Image, error) {
 			// Replace with new image buffer
 			image = curImage
 		}
-		// Explicitly clear reference to old buffer to help GC reclaim memory faster
-		oldBody = nil
 	}
 
 	// Clear libvips operation cache after pipeline processing to prevent memory leaks
