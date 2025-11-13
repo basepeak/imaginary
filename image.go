@@ -396,6 +396,12 @@ func Pipeline(buf []byte, o ImageOptions) (Image, error) {
 		o.Operations[i] = operation
 	}
 
+	// Clear libvips operation cache after pipeline processing to prevent memory leaks
+	// This is important for pipelines processing large images (e.g., 4096x4096)
+	// as libvips may cache intermediate operations
+	// Using defer ensures it's called even if an error occurs during processing
+	defer bimg.VipsCacheDropAll()
+
 	var image Image
 	var err error
 
@@ -411,6 +417,7 @@ func Pipeline(buf []byte, o ImageOptions) (Image, error) {
 			err = nil
 		}
 		if err == nil {
+			// Replace with new image buffer
 			image = curImage
 		}
 	}

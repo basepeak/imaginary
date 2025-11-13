@@ -52,6 +52,8 @@ var (
 	aCpus               = flag.Int("cpus", runtime.GOMAXPROCS(-1), "Number of cpu cores to use")
 	aLogLevel           = flag.String("log-level", "info", "Define log level for http-server. E.g: info,warning,error")
 	aReturnSize         = flag.Bool("return-size", false, "Return the image size in the HTTP headers")
+	aVipsCacheMax       = flag.Int("vips-cache-max", 0, "Maximum number of operations to cache in libvips (0 = disable operation cache)")
+	aVipsCacheMaxMem    = flag.Int("vips-cache-max-mem", 100*1024*1024, "Maximum memory in bytes for libvips cache (default: 100MB)")
 )
 
 const usage = `imaginary %s
@@ -110,6 +112,10 @@ Options:
   -log-level                 Set log level for http-server. E.g: info,warning,error [default: info].
                              Or can use the environment variable GOLANG_LOG=info.
   -return-size               Return the image size with X-Width and X-Height HTTP header. [default: disabled].
+  -vips-cache-max <num>      Maximum number of operations to cache in libvips [default: 0 (disabled)].
+                             Or can use the environment variable VIPS_CACHE_MAX.
+  -vips-cache-max-mem <bytes> Maximum memory in bytes for libvips cache [default: 104857600 (100MB)].
+                             Or can use the environment variable VIPS_CACHE_MAX_MEM.
 `
 
 type URLSignature struct {
@@ -131,6 +137,16 @@ func main() {
 
 	// Only required in Go < 1.5
 	runtime.GOMAXPROCS(*aCpus)
+
+	// Configure libvips cache to prevent memory leaks
+	// Limit cache to 0 operations (disable operation cache) to prevent memory buildup
+	// This is especially important for pipeline operations that process many images
+	// Values can be configured via -vips-cache-max and -vips-cache-max-mem flags
+	// or via VIPS_CACHE_MAX and VIPS_CACHE_MAX_MEM environment variables
+	vipsCacheMax := getVipsCacheMax(*aVipsCacheMax)
+	vipsCacheMaxMem := getVipsCacheMaxMem(*aVipsCacheMaxMem)
+	bimg.VipsCacheSetMax(vipsCacheMax)
+	bimg.VipsCacheSetMaxMem(vipsCacheMaxMem)
 
 	port := getPort(*aPort)
 	urlSignature := getURLSignature(*aURLSignatureKey)
@@ -251,6 +267,24 @@ func getLogLevel(logLevel string) string {
 		logLevel = logLevelEnv
 	}
 	return logLevel
+}
+
+func getVipsCacheMax(cacheMax int) int {
+	if cacheMaxEnv := os.Getenv("VIPS_CACHE_MAX"); cacheMaxEnv != "" {
+		if newCacheMax, err := strconv.Atoi(cacheMaxEnv); err == nil {
+			cacheMax = newCacheMax
+		}
+	}
+	return cacheMax
+}
+
+func getVipsCacheMaxMem(cacheMaxMem int) int {
+	if cacheMaxMemEnv := os.Getenv("VIPS_CACHE_MAX_MEM"); cacheMaxMemEnv != "" {
+		if newCacheMaxMem, err := strconv.Atoi(cacheMaxMemEnv); err == nil {
+			cacheMaxMem = newCacheMaxMem
+		}
+	}
+	return cacheMaxMem
 }
 
 func showUsage() {
