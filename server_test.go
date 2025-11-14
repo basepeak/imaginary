@@ -422,7 +422,9 @@ func readFile(file string) io.Reader {
 }
 
 func assertSize(buf []byte, width, height int) error {
-	size, err := bimg.NewImage(buf).Size()
+	// Use bimg.Size() directly instead of bimg.NewImage().Size() to avoid potential
+	// libvips state issues, especially with WebP images after pipeline operations
+	size, err := bimg.Size(buf)
 	if err != nil {
 		return err
 	}
